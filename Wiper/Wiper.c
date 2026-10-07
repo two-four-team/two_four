@@ -1,27 +1,15 @@
 #include "vehicle_control.h"
 /* =========================================================
- * 강우 센서 상태 판단
- * ========================================================= */
-/*
- * C2:
- * 강우량 유효 범위는 0 ~ 100%.
- * 범위를 벗어난 값은 SENSOR_FAULT로 판단한다.
- *
- * 주의:
- * 0.5초 미수신에 대한 SENSOR_FAULT 처리는
- * main의 수신 관리 로직에서 수행한다.
- */
-/* =========================================================
  * 와이퍼 제어
  * 우선순위 : W1 > W4 > W5 > W2/W3
  * ========================================================= */
 
 WiperState ControlWiper(
-    EngineState engineState,
     RxState vehicleRxState,
+    EngineState engineState,
     WiperSwitch wiperSwitch,
-    int rainAmount,
     SensorState rainSensorState,
+    int rainAmount,
     int speed
 )
 {
