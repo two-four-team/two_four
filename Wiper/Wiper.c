@@ -1,38 +1,52 @@
 #include "vehicle_control.h"
-
-/* ==================== 강우 센서 고장 판단 ==================== */
-
-/* C2: 강우량이 0 ~ 100 % 범위를 벗어나면 센서 고장 */
-SensorState CheckRainSensorFault(int rainAmount)
-{
-    if (rainAmount < 0 || rainAmount > 100) {
-        return SENSOR_FAULT;
-    }
-
-    return SENSOR_NORMAL;
-}
-/* ==================== 와이퍼 제어 ==================== */
+/* =========================================================
+ * 강우 센서 상태 판단
+ * ========================================================= */
+/*
+ * C2:
+ * 강우량 유효 범위는 0 ~ 100%.
+ * 범위를 벗어난 값은 SENSOR_FAULT로 판단한다.
+ *
+ * 주의:
+ * 0.5초 미수신에 대한 SENSOR_FAULT 처리는
+ * main의 수신 관리 로직에서 수행한다.
+ */
+/* =========================================================
+ * 와이퍼 제어
+ * 우선순위 : W1 > W4 > W5 > W2/W3
+ * ========================================================= */
 
 WiperState ControlWiper(
-    RxState vehicleRxState,
     EngineState engineState,
+    RxState vehicleRxState,
     WiperSwitch wiperSwitch,
-    SensorState rainSensorState,
     int rainAmount,
+    SensorState rainSensorState,
     int speed
 )
 {
     WiperState wiper = WIPER_STOP;
 
-    /* W1 + C4:
-     * 시동 OFF 또는 차량 상태 수신 중단이면 와이퍼 정지 */
+    /*
+     * W1 + C4
+     *
+     * 실제 시동이 OFF이거나,
+     * CheckVehicleStateRx()에서 차량 상태 수신 중단으로
+     * 판단된 경우 와이퍼를 정지한다.
+     */
     if (engineState == ENGINE_OFF ||
         vehicleRxState == RX_TIMEOUT) {
+
         return WIPER_STOP;
     }
 
-    /* W4: 수동 스위치 제어 */
+
+    /*
+     * W4
+     * 수동 스위치는 AUTO 제어보다 우선한다.
+     */
     switch (wiperSwitch) {
+
         case WIPER_SWITCH_OFF:
             return WIPER_STOP;
 
@@ -43,20 +57,28 @@ WiperState ControlWiper(
             return WIPER_HIGH;
 
         case WIPER_SWITCH_AUTO:
+            /* AUTO인 경우 아래 W5, W2, W3 수행 */
             break;
 
         default:
+            /* 정의되지 않은 스위치 값에 대한 방어 처리 */
             return WIPER_STOP;
     }
-
-    /* W5:
-     * AUTO에서 강우 센서 고장이면 간헐 동작.
-     * W5가 W3보다 우선하므로 정차 중이어도 단계 감소하지 않음. */
+    /*
+     * W5
+     * AUTO 상태에서 강우 센서 고장이면 간헐 동작.
+     *
+     * W5가 W3보다 우선하므로
+     * speed == 0이어도 STOP으로 낮추지 않는다.
+     */
     if (rainSensorState == SENSOR_FAULT) {
         return WIPER_INTERMITTENT;
     }
-
-    /* W2: 강우량에 따른 AUTO 와이퍼 단계 결정 */
+    /*
+     * W2
+     * AUTO + 정상 강우 센서 상태에서
+     * 강우량에 따라 기본 와이퍼 단계를 결정한다.
+     */
     if (rainAmount < 10) {
         wiper = WIPER_STOP;
     }
@@ -69,23 +91,24 @@ WiperState ControlWiper(
     else {
         wiper = WIPER_HIGH;
     }
-
-    /* W3:
-     * 유효한 속도가 0일 때 W2 결과를 한 단계 감소.
-     * 유효 속도 범위는 0 ~ 250.
+    /*
+     * W3
+     * 유효한 속도가 0이면
+     * W2 결과를 한 단계 낮춘다.
+     *
+     * 유효 속도 범위 : 0 ~ 250
      *
      * WiperState enum이
-     * STOP < INTERMITTENT < LOW < HIGH
-     * 순서로 정의되어 있다는 전제에 의존함.
+     * STOP(0) < INTERMITTENT(1) < LOW(2) < HIGH(3)
+     * 순서로 정의되어 있다는 전제에 의존한다.
      *
-     * 속도가 유효 범위를 벗어난 경우에는
-     * W3를 적용하지 않고 W2 결과를 유지함.
+     * 범위를 벗어난 속도는 W3 조건으로 사용하지 않는다.
      */
-    if ((speed >= 0 && speed <= 250) &&
-        speed == 0 &&
-        wiper > WIPER_STOP) {
+    if (speed >= 0 && speed <= 250) {
 
-        wiper = (WiperState)(wiper - 1);
+        if (speed == 0 && wiper > WIPER_STOP) {
+            wiper = (WiperState)(wiper - 1);
+        }
     }
 
     return wiper;
