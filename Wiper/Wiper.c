@@ -14,11 +14,11 @@ SensorState CheckRainSensorFault(int rainAmount)
 /* ==================== 와이퍼 제어 ==================== */
 
 WiperState ControlWiper(
-    EngineState engineState,
     RxState vehicleRxState,
+    EngineState engineState,
     WiperSwitch wiperSwitch,
-    int rainAmount,
     SensorState rainSensorState,
+    int rainAmount,
     int speed
 )
 {
