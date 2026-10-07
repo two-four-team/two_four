@@ -107,7 +107,7 @@ HeadLightState ControlHeadLight(
     unsigned int wiperActiveTime
     unsigned int lowIlluminanceTime,
     unsigned int highIlluminanceTime,
-    HeadLightState currentHeadLight,
+    HeadLightState currentHeadLight
 );
 
 WiperState ControlWiper(
