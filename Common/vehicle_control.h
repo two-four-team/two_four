@@ -107,7 +107,7 @@ typedef enum {
 HeadLightState headLight = HEADLIGHT_OFF;
 
 SensorState lightSensorFault = SENSOR_NORMAL;
-WiperState wiper = WIPER_STOP;
+WiperState wiperState = WIPER_STOP;
 SensorState rainSensorFault = SENSOR_NORMAL;
 
 DoorLockState doorLock = DOOR_UNLOCKED;
@@ -127,7 +127,7 @@ unsigned int UpdateHighIlluminanceTime(
 );
 
 unsigned int UpdateWiperActiveTime(
-    WiperState wiper,
+    WiperState wiperState,
     unsigned int currentTime
 );
 
