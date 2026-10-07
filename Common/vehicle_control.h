@@ -40,26 +40,6 @@ typedef enum {
     RX_TIMEOUT
 } RxState;
 
-/* 입력 전역변수 */
-int speed = 0;                   // 0 ~ 250 km/h
-Gear gear = GEAR_P;
-EngineState engineState = ENGINE_OFF;
-
-int illuminance = 0;             // 0 ~ 60000 lux
-int rainAmount = 0;              // 0 ~ 100 %
-
-DoorState doorFL = DOOR_CLOSED;
-DoorState doorFR = DOOR_CLOSED;
-DoorState doorRL = DOOR_CLOSED;
-DoorState doorRR = DOOR_CLOSED;
-
-LightSwitch lightSwitch = LIGHT_AUTO;
-WiperSwitch wiperSwitch = WIPER_SWITCH_OFF;
-
-RxState speedRxState = RX_NORMAL;
-RxState gearRxState = RX_NORMAL;
-RxState engineRxState = RX_NORMAL;
-
 /* ==================== 출력 ==================== */
 
 /* 전조등 */
@@ -101,18 +81,6 @@ typedef enum {
     WARNING_LIGHT_SENSOR_FAULT,
     WARNING_RAIN_SENSOR_FAULT
 } ClusterWarning;
-
-
-/* 출력 전역변수 */
-HeadLightState headLight = HEADLIGHT_OFF;
-
-SensorState lightSensorFault = SENSOR_NORMAL;
-WiperState wiperState = WIPER_STOP;
-SensorState rainSensorFault = SENSOR_NORMAL;
-
-DoorLockState doorLock = DOOR_UNLOCKED;
-
-ClusterWarning clusterWarning = WARNING_NONE;
 
 /* ==================== 함수 ==================== */
 
