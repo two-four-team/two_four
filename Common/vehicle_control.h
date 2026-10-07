@@ -90,9 +90,9 @@ typedef enum {
 
 /* 주행 중 도어 열림 상태 */
 typedef enum {
-    DOOR_DRIVING_NORMAL,
-    DOOR_OPEN_WHILE_DRIVING
-} DoorDrivingState;
+    DOOR_OPEN_WARNING_INACTIVE,
+    DOOR_OPEN_WARNING_ACTIVE
+} DoorOpenWarningState;
 
 /* 계기판 경고 */
 typedef enum {
@@ -142,7 +142,7 @@ DoorLockState ControlDoorLock(
     RxState vehicleRxState
 );
 
-DoorDrivingState CheckDoorOpenWhileDriving(
+DoorOpenWarningState CheckDoorOpenWhileDriving(
     int speed,
     DoorState doorFL,
     DoorState doorFR,
@@ -159,9 +159,9 @@ SensorState CheckRainSensorFault(
 );
 
 ClusterWarning CheckClusterWarning(
-    DoorDrivingState doorDrivingState,
-    SensorState lightSensorFault,
-    SensorState rainSensorFault
+    DoorOpenWarningState doorOpenWarningState,
+    SensorState lightSensorState,
+    SensorState rainSensorState
 );
 
 RxState CheckVehicleStateRx(
