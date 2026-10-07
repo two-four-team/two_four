@@ -111,11 +111,11 @@ HeadLightState ControlHeadLight(
 );
 
 WiperState ControlWiper(
-    EngineState engineState,
     RxState vehicleRxState,
+    EngineState engineState,
     WiperSwitch wiperSwitch,
-    int rainAmount,
     SensorState rainSensorState,
+    int rainAmount,
     int speed
 );
 
