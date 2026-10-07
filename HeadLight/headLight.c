@@ -38,22 +38,6 @@ unsigned int UpdateWiperActiveTime(WiperState wiperState, unsigned int currentTi
     return 0;
 }
 
-
-/* =========================
- * 조도 센서 고장 판단 (C2)
- * 0 ~ 60000 lux 범위 밖이면 고장
- * ========================= */
-SensorState CheckLightSensorFault(int illuminance)
-{
-    if (illuminance < 0 || illuminance > 60000)
-    {
-        return SENSOR_FAULT;
-    }
-
-    return SENSOR_NORMAL;
-}
-
-
 /* =========================
  * 전조등 제어
  * 우선순위: L1 > L5 > L4 > L6 > L2·L3
