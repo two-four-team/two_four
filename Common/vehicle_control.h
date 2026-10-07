@@ -116,6 +116,21 @@ ClusterWarning clusterWarning = WARNING_NONE;
 
 /* ==================== 함수 ==================== */
 
+unsigned int UpdateLowIlluminanceTime(
+    int illuminance,
+    unsigned int currentTime
+);
+
+unsigned int UpdateHighIlluminanceTime(
+    int illuminance,
+    unsigned int currentTime
+);
+
+unsigned int UpdateWiperActiveTime(
+    WiperState wiper,
+    unsigned int currentTime
+);
+
 HeadLightState ControlHeadLight(
     HeadLightState currentHeadLight,
     EngineState engineState,
