@@ -137,10 +137,6 @@ DoorLockState ControlDoorLock(
     EngineState engineState,
     Gear gear,
     int speed,
-    DoorState doorFL,
-    DoorState doorFR,
-    DoorState doorRL,
-    DoorState doorRR
 );
 
 DoorDrivingState CheckDoorOpenWhileDriving(
