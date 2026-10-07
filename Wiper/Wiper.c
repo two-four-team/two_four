@@ -1,116 +1,77 @@
-#include <stdbool.h>
-#include <stdint.h>
+#include "vehicle_control.h"
 
-/* ==================== 와이퍼 상태 ==================== */
+/* ==================== 강우 센서 고장 판단 ==================== */
 
-typedef enum {
-    WIPER_SWITCH_OFF,
-    WIPER_SWITCH_AUTO,
-    WIPER_SWITCH_LOW,
-    WIPER_SWITCH_HIGH
-} WiperSwitch;
+/* C2: 강우량이 0 ~ 100 % 범위를 벗어나면 센서 고장 */
+SensorState CheckRainSensorFault(int rainAmount)
+{
+    if (rainAmount < 0 || rainAmount > 100) {
+        return SENSOR_FAULT;
+    }
 
-typedef enum {
-    WIPER_STOP,
-    WIPER_INTERMITTENT,
-    WIPER_LOW,
-    WIPER_HIGH
-} WiperState;
-
-typedef enum {
-    SENSOR_NORMAL,
-    SENSOR_FAULT
-} SensorState;
-
-/* ==================== 입력 구조체 ==================== */
-
-typedef struct {
-    bool engineOn;
-    WiperSwitch wiperSwitch;
-    int rainAmount;
-    int speed;
-
-    bool vehicleStateValid;
-    SensorState rainSensorFault;
-} WiperInput;
-
-/* ==================== 출력 구조체 ==================== */
-
-typedef struct {
-    WiperState wiper;
-    SensorState rainSensorFault;
-} WiperOutput;
+    return SENSOR_NORMAL;
+}
 
 /* ==================== 와이퍼 제어 ==================== */
 
-WiperOutput Wiper_Control(WiperInput input)
+WiperState ControlWiper(
+    EngineState engineState,
+    RxState vehicleRxState,
+    WiperSwitch wiperSwitch,
+    int rainAmount,
+    SensorState rainSensorState,
+    int speed
+)
 {
-    WiperOutput output = {
-        WIPER_STOP,
-        input.rainSensorFault
-    };
-  /* C2: 강우량 범위 검사 */
-if (input.rainAmount < 0 || input.rainAmount > 100) {
-    output.rainSensorFault = SENSOR_FAULT;
-}
-else {
-    output.rainSensorFault = input.rainSensorFault;
-}
+    WiperState wiper;
 
     /* W1 + C4: 시동 OFF 또는 차량 상태 수신 중단 */
-    if (!input.engineOn || !input.vehicleStateValid) {
-        return output;
+    if (engineState == ENGINE_OFF || vehicleRxState == RX_TIMEOUT) {
+        return WIPER_STOP;
     }
 
     /* W4: 수동 스위치 */
-    switch (input.wiperSwitch) {
+    switch (wiperSwitch) {
         case WIPER_SWITCH_OFF:
-            output.wiper = WIPER_STOP;
-            return output;
+            return WIPER_STOP;
 
         case WIPER_SWITCH_LOW:
-            output.wiper = WIPER_LOW;
-            return output;
+            return WIPER_LOW;
 
         case WIPER_SWITCH_HIGH:
-            output.wiper = WIPER_HIGH;
-            return output;
+            return WIPER_HIGH;
 
         case WIPER_SWITCH_AUTO:
             break;
 
         default:
-            return output;
+            return WIPER_STOP;
     }
 
-
-
-/* W5: 강우 센서 고장 */
-if (output.rainSensorFault == SENSOR_FAULT) {
-    output.wiper = WIPER_INTERMITTENT;
-    return output;
-}
+    /* W5: 강우 센서 고장 시 간헐 동작 */
+    if (rainSensorState == SENSOR_FAULT) {
+        return WIPER_INTERMITTENT;
+    }
 
     /* W2: 강우량에 따른 와이퍼 동작 */
-    if (input.rainAmount < 10) {
-        output.wiper = WIPER_STOP;
+    if (rainAmount < 10) {
+        wiper = WIPER_STOP;
     }
-    else if (input.rainAmount < 40) {
-        output.wiper = WIPER_INTERMITTENT;
+    else if (rainAmount < 40) {
+        wiper = WIPER_INTERMITTENT;
     }
-    else if (input.rainAmount < 70) {
-        output.wiper = WIPER_LOW;
+    else if (rainAmount < 70) {
+        wiper = WIPER_LOW;
     }
     else {
-        output.wiper = WIPER_HIGH;
+        wiper = WIPER_HIGH;
     }
 
-    /* W3: 유효한 차량 속도가 0이면 한 단계 감소 */
-    if (input.speed == 0 && input.vehicleStateValid) {
-        if (output.wiper > WIPER_STOP) {
-            output.wiper--;
-        }
+    /* W3: 정차 중(속도 0)이면 한 단계 감소
+     * WiperState 가 STOP < INTERMITTENT < LOW < HIGH 순서임에 의존 */
+    if (speed == 0 && wiper > WIPER_STOP) {
+        wiper = (WiperState)(wiper - 1);
     }
 
-    return output;
+    return wiper;
 }
