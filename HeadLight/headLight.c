@@ -1,124 +1,119 @@
 #include "vehicle_control.h"
 
 /* =========================
- * 시간 카운터
+ * 연속 시간 계산 (100ms 주기 호출)
+ * 조건이 맞으면 currentTime + 100, 아니면 0
  * ========================= */
-static int lowLightTime = 0;
-static int highLightTime = 0;
-static int wiperActiveTime = 0;
 
-/* 현재 헤드라이트 상태 */
-static HeadLightState headLightState = HEADLIGHT_OFF;
+/* 조도 0 이상 1000 lux 미만 */
+unsigned int UpdateLowIlluminanceTime(int illuminance, unsigned int currentTime)
+{
+    currentTime = 0;
+
+    if (illuminance >= 0 && illuminance < 1000)
+    {
+        return currentTime + 100;
+    }
+
+    return 0;
+}
+
+/* 조도 1500 lux 초과 60000 이하 */
+unsigned int UpdateHighIlluminanceTime(int illuminance, unsigned int currentTime)
+{
+    currentTime = 0;
+
+    if (illuminance > 1500 && illuminance <= 60000)
+    {
+        return currentTime + 100;
+    }
+
+    return 0;
+}
+
+/* 와이퍼 작동 */
+unsigned int UpdateWiperActiveTime(WiperState wiperState, unsigned int currentTime)
+{
+    currentTime = 0;
+    
+    if (wiperState != WIPER_STOP)
+    {
+        return currentTime + 100;
+    }
+
+    return 0;
+}
 
 
-HeadLightState GetHeadLightState(EngineState engineState,LightSwitch lightSwitch,int illuminance,WiperState wiper)
+/* =========================
+ * 전조등 제어
+ * 우선순위: L1 > L5 > L4 > L6 > L2·L3
+ * ========================= */
+HeadLightState ControlHeadLight(
+    RxState vehicleRxState,
+    EngineState engineState,
+    SensorState lightSensorState,
+    LightSwitch lightSwitch,
+    unsigned int wiperActiveTime,
+    unsigned int lowIlluminanceTime,
+    unsigned int highIlluminanceTime,
+    HeadLightState currentHeadLight
+)
 {
     /* =========================
-     * 1. 시동 OFF
+     * 1. 시동 OFF 또는 차량 상태 수신 중단 (L1, C4)
      * ========================= */
-    if (engineState == ENGINE_OFF)
+    if (vehicleRxState == RX_TIMEOUT || engineState == ENGINE_OFF)
     {
-        lowLightTime = 0;
-        highLightTime = 0;
-        wiperActiveTime = 0;
-
-        headLightState = HEADLIGHT_OFF;
-
-        return headLightState;
+        return HEADLIGHT_OFF;
     }
 
-
     /* =========================
-     * 2. 조명 스위치 OFF
+     * 2. 조도 센서 고장 (L5)
      * ========================= */
-    if (lightSwitch == LIGHT_OFF)
+    if (lightSensorState == SENSOR_FAULT)
     {
-        lowLightTime = 0;
-        highLightTime = 0;
-        wiperActiveTime = 0;
-
-        headLightState = HEADLIGHT_OFF;
-
-        return headLightState;
+        return HEADLIGHT_ON;
     }
 
-
     /* =========================
-     * 3. 조명 스위치 ON
+     * 3. 조명 스위치 ON / OFF (L4)
      * ========================= */
     if (lightSwitch == LIGHT_ON)
     {
-        lowLightTime = 0;
-        highLightTime = 0;
-        wiperActiveTime = 0;
-
-        headLightState = HEADLIGHT_ON;
-
-        return headLightState;
+        return HEADLIGHT_ON;
     }
 
+    if (lightSwitch == LIGHT_OFF)
+    {
+        return HEADLIGHT_OFF;
+    }
 
     /* =========================
      * 4. 조명 스위치 AUTO
      * ========================= */
 
-    /* -------------------------
-     * 조도 조건
-     * ------------------------- */
+    WiperState wiperState = WIPER_STOP;
+    int illuminance = 0;
 
-    /* 1000 lux 미만이 1초 연속 → ON */
-    if (illuminance < 1000)
+    /* 와이퍼 10초 연속 작동 → ON (L6) */
+    if (wiperActiveTime >= 10000)
     {
-        lowLightTime++;
-        highLightTime = 0;
-
-        if (lowLightTime >= 1)
-        {
-            headLightState = HEADLIGHT_ON;
-        }
+        return HEADLIGHT_ON;
     }
 
-    /* 1500 lux 초과가 3초 연속 → OFF */
-    else if (illuminance > 1500)
+    /* 1000 lux 미만이 1초 연속 → ON (L2) */
+    if (lowIlluminanceTime >= 1000)
     {
-        highLightTime++;
-        lowLightTime = 0;
-
-        if (highLightTime >= 3)
-        {
-            headLightState = HEADLIGHT_OFF;
-        }
+        return HEADLIGHT_ON;
     }
 
-    /* 1000 ~ 1500 lux → 기존 상태 유지 */
-    else
+    /* 1500 lux 초과가 3초 연속 → OFF (L3) */
+    if (highIlluminanceTime >= 3000)
     {
-        lowLightTime = 0;
-        highLightTime = 0;
+        return HEADLIGHT_OFF;
     }
 
-
-    /* -------------------------
-     * 와이퍼 조건
-     * ------------------------- */
-
-    /* 와이퍼가 정지 상태가 아니면 */
-    if (wiper != WIPER_STOP)
-    {
-        wiperActiveTime++;
-
-        /* 10초 연속 작동 → ON */
-        if (wiperActiveTime >= 10)
-        {
-            headLightState = HEADLIGHT_ON;
-        }
-    }
-    else
-    {
-        /* 와이퍼 정지 → 연속 작동 시간 초기화 */
-        wiperActiveTime = 0;
-    }
-
-
-    return headLightState;
+    /* 어느 조건도 아니면 기존 상태 유지 (L3) */
+    return currentHeadLight;
 }
