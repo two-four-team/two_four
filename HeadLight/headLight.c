@@ -8,8 +8,6 @@
 /* 조도 0 이상 1000 lux 미만 */
 unsigned int UpdateLowIlluminanceTime(int illuminance, unsigned int currentTime)
 {
-    currentTime = 0;
-
     if (illuminance >= 0 && illuminance < 1000)
     {
         return currentTime + 100;
@@ -21,8 +19,6 @@ unsigned int UpdateLowIlluminanceTime(int illuminance, unsigned int currentTime)
 /* 조도 1500 lux 초과 60000 이하 */
 unsigned int UpdateHighIlluminanceTime(int illuminance, unsigned int currentTime)
 {
-    currentTime = 0;
-
     if (illuminance > 1500 && illuminance <= 60000)
     {
         return currentTime + 100;
@@ -34,14 +30,27 @@ unsigned int UpdateHighIlluminanceTime(int illuminance, unsigned int currentTime
 /* 와이퍼 작동 */
 unsigned int UpdateWiperActiveTime(WiperState wiperState, unsigned int currentTime)
 {
-    currentTime = 0;
-    
     if (wiperState != WIPER_STOP)
     {
         return currentTime + 100;
     }
 
     return 0;
+}
+
+
+/* =========================
+ * 조도 센서 고장 판단 (C2)
+ * 0 ~ 60000 lux 범위 밖이면 고장
+ * ========================= */
+SensorState CheckLightSensorFault(int illuminance)
+{
+    if (illuminance < 0 || illuminance > 60000)
+    {
+        return SENSOR_FAULT;
+    }
+
+    return SENSOR_NORMAL;
 }
 
 
