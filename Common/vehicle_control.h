@@ -104,7 +104,7 @@ HeadLightState ControlHeadLight(
     EngineState engineState,
     SensorState lightSensorState,
     LightSwitch lightSwitch,
-    unsigned int wiperActiveTime
+    unsigned int wiperActiveTime,
     unsigned int lowIlluminanceTime,
     unsigned int highIlluminanceTime,
     HeadLightState currentHeadLight
