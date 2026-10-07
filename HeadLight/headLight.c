@@ -86,9 +86,6 @@ HeadLightState ControlHeadLight(
      * 4. 조명 스위치 AUTO
      * ========================= */
 
-    WiperState wiperState = WIPER_STOP;
-    int illuminance = 0;
-
     /* 와이퍼 10초 연속 작동 → ON (L6) */
     if (wiperActiveTime >= 10000)
     {
