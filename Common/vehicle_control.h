@@ -100,14 +100,14 @@ unsigned int UpdateWiperActiveTime(
 );
 
 HeadLightState ControlHeadLight(
-    HeadLightState currentHeadLight,
-    EngineState engineState,
     RxState vehicleRxState,
-    LightSwitch lightSwitch,
+    EngineState engineState,
     SensorState lightSensorState,
+    LightSwitch lightSwitch,
+    unsigned int wiperActiveTime
     unsigned int lowIlluminanceTime,
     unsigned int highIlluminanceTime,
-    unsigned int wiperActiveTime
+    HeadLightState currentHeadLight,
 );
 
 WiperState ControlWiper(
