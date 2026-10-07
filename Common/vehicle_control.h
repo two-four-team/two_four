@@ -118,6 +118,7 @@ ClusterWarning clusterWarning = WARNING_NONE;
 
 HeadLightState ControlHeadLight(
     EngineState engineState,
+    RxState vehicleRxState,
     LightSwitch lightSwitch,
     int illuminance,
     SensorState lightSensorState,
@@ -126,6 +127,7 @@ HeadLightState ControlHeadLight(
 
 WiperState ControlWiper(
     EngineState engineState,
+    RxState vehicleRxState,
     WiperSwitch wiperSwitch,
     int rainAmount,
     SensorState rainSensorState,
