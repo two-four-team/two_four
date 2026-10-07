@@ -117,12 +117,14 @@ ClusterWarning clusterWarning = WARNING_NONE;
 /* ==================== 함수 ==================== */
 
 HeadLightState ControlHeadLight(
+    HeadLightState currentHeadLight,
     EngineState engineState,
     RxState vehicleRxState,
     LightSwitch lightSwitch,
-    int illuminance,
     SensorState lightSensorState,
-    WiperState wiper
+    unsigned int lowIlluminanceTime,
+    unsigned int highIlluminanceTime,
+    unsigned int wiperActiveTime
 );
 
 WiperState ControlWiper(
