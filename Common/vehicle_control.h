@@ -143,7 +143,7 @@ SensorState CheckRainSensorFault(
     int rainAmount
 );
 
-ClusterWarning CheckClusterWarning(
+ClusterWarning DetermineClusterWarning(
     DoorOpenWarningState doorOpenWarningState,
     SensorState lightSensorState,
     SensorState rainSensorState
