@@ -88,6 +88,12 @@ typedef enum {
     DOOR_LOCKED
 } DoorLockState;
 
+/* 주행 중 도어 열림 상태 */
+typedef enum {
+    DOOR_DRIVING_NORMAL,
+    DOOR_OPEN_WHILE_DRIVING
+} DoorDrivingState;
+
 /* 계기판 경고 */
 typedef enum {
     WARNING_NONE,
@@ -114,6 +120,7 @@ HeadLightState ControlHeadLight(
     EngineState engineState,
     LightSwitch lightSwitch,
     int illuminance,
+    SensorState lightSensorState,
     WiperState wiper
 );
 
@@ -121,10 +128,12 @@ WiperState ControlWiper(
     EngineState engineState,
     WiperSwitch wiperSwitch,
     int rainAmount,
+    SensorState rainSensorState,
     int speed
 );
 
 DoorLockState ControlDoorLock(
+    DoorLockState currentDoorLock,
     EngineState engineState,
     Gear gear,
     int speed,
@@ -134,14 +143,26 @@ DoorLockState ControlDoorLock(
     DoorState doorRR
 );
 
-ClusterWarning CheckClusterWarning(
-    int illuminance,
-    int rainAmount,
+DoorDrivingState CheckDoorOpenWhileDriving(
     int speed,
     DoorState doorFL,
     DoorState doorFR,
     DoorState doorRL,
     DoorState doorRR
+);
+
+SensorState CheckLightSensorFault(
+    int illuminance
+);
+
+SensorState CheckRainSensorFault(
+    int rainAmount
+);
+
+ClusterWarning CheckClusterWarning(
+    DoorDrivingState doorDrivingState,
+    SensorState lightSensorFault,
+    SensorState rainSensorFault
 );
 
 RxState CheckVehicleStateRx(
