@@ -344,12 +344,17 @@ static SensorState SimSensorState(const PeriodicInput *in, long now,
 }
 
 /* C3 유효한 속도: 차량 상태 3개 모두 0.5초 이내 수신 + 0~250, 아니면 INVALID_SPEED
+ * 한 번도 들어오지 않은 항목은 "마지막으로 들어온" 시각이 없으므로 유효하지 않다.
+ * (시작 후 0.5초 안에는 vehicleRx 가 RX_NORMAL 이어도 초기값 속도 0·기어 P 를 쓰지 않는다)
  * → 옮길 곳: sensor.c GetValidSpeed */
-static int SimValidSpeed(int speed, RxState vehicleRx)
+static int SimValidSpeed(const PeriodicInput *speed, const PeriodicInput *gear,
+                         const PeriodicInput *engine, RxState vehicleRx)
 {
-    if (vehicleRx == RX_NORMAL && speed >= 0 && speed <= 250)
+    if (vehicleRx == RX_NORMAL &&
+        speed->everReceived && gear->everReceived && engine->everReceived &&
+        speed->value >= 0 && speed->value <= 250)
     {
-        return speed;
+        return speed->value;
     }
 
     return INVALID_SPEED;
@@ -498,7 +503,7 @@ static void StepSimulator(Simulator *sim, const RowInput *row)
     engineState = (vehicleRx == RX_TIMEOUT) ? ENGINE_OFF : (EngineState)sim->engine.value;
 
     /* C3 유효한 속도 */
-    validSpeed = SimValidSpeed(sim->speed.value, vehicleRx);
+    validSpeed = SimValidSpeed(&sim->speed, &sim->gear, &sim->engine, vehicleRx);
 
     /* ---------- C2 센서 고장 ---------- */
     out->lightSensor = SimSensorState(&sim->illuminance, now, CheckLightSensorFault);
