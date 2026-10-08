@@ -58,8 +58,12 @@ WiperState ControlWiper(
      *
      * W5가 W3보다 우선하므로
      * speed == 0이어도 STOP으로 낮추지 않는다.
+     *
+     * C2: 강우량이 유효 범위(0 ~ 100 %) 밖이면 rainSensorState와 관계없이 고장으로 본다.
+     * (0.5초 미수신 고장은 호출부가 rainSensorState에 합성해서 넘긴다.)
      */
-    if (rainSensorState == SENSOR_FAULT) {
+    if (rainSensorState == SENSOR_FAULT ||
+        CheckRainSensorFault(rainAmount) == SENSOR_FAULT) {
         return WIPER_INTERMITTENT;
     }
     /*

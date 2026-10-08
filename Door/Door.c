@@ -9,6 +9,8 @@
  * 유효한 속도(C3) 중 이 함수에서 판단하는 것은 속도 범위(0 ~ 250 km/h)뿐이다.
  * "마지막 수신 후 0.5초 이내" 조건은 인자에 RxState가 없어 판단할 수 없으므로
  * 호출부에서 처리해야 한다.
+ * (CheckVehicleStateRx() 결과가 RX_TIMEOUT이면 무효 속도(예: -1)를 넘기거나
+ *  이 함수를 호출하지 않고 DOOR_OPEN_WARNING_INACTIVE로 처리한다.)
  * ========================= */
 DoorOpenWarningState CheckDoorOpenWhileDriving(int speed,
                                                DoorState doorFL,
