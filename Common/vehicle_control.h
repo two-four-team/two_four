@@ -1,3 +1,6 @@
+#ifndef VEHICLE_CONTROL_H
+#define VEHICLE_CONTROL_H
+
 /* ==================== 입력 ==================== */
 
 /* 기어 */
@@ -154,3 +157,5 @@ RxState CheckVehicleStateRx(
     RxState gearRxState,
     RxState engineRxState
 );
+
+#endif /* VEHICLE_CONTROL_H */

@@ -31,3 +31,33 @@ DoorOpenWarningState CheckDoorOpenWhileDriving(int speed,
 
     return DOOR_OPEN_WARNING_INACTIVE;
 }
+
+
+DoorLockState ControlDoorLock(
+    DoorLockState currentDoorLock,
+    EngineState engineState,
+    Gear gear,
+    int speed,
+    RxState vehicleRxState
+)
+{
+    /* D1 차량 상태 수신 중단이면 그대로 둔다 */
+    if (vehicleRxState == RX_TIMEOUT)
+    {
+        return currentDoorLock;
+    }
+
+    /* D2 시동 OFF 또는 기어 P 이면 푼다 */
+    if (engineState == ENGINE_OFF || gear == GEAR_P)
+    {
+        return DOOR_UNLOCKED;
+    }
+
+    /* D3 유효한 속도(0~250)가 15 km/h 이상이면 잠근다 */
+    if (speed >= 15 && speed <= 250)
+    {
+        return DOOR_LOCKED;
+    }
+
+    return currentDoorLock;
+}
