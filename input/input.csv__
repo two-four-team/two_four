@@ -1,0 +1,2 @@
+time_ms,speed,gear,engineState,illuminance,rainAmount,doorFL,doorFR,doorRL,doorRR,lightSwitch,wiperSwitch
+9000,0,GEAR_P,ENGINE_ON,59999,0,DOOR_CLOSED,DOOR_CLOSED,DOOR_CLOSED,DOOR_CLOSED,LIGHT_AUTO,WIPER_SWITCH_AUTO

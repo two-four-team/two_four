@@ -1,0 +1,17 @@
+﻿requirementId,category,description,priority,verification,precedence
+L1,HeadLight,시동이 꺼져 있으면 전조등은 꺼진다.,Required,Test,1
+L5,HeadLight,"조도 센서가 고장이면 켜고, 고장을 표시한다 (표시는 시동과 관계없이).",Required,Test,2
+L4,HeadLight,"스위치 ON이면 켜고, OFF이면 끈다.",Required,Test,3
+L6,HeadLight,"스위치 AUTO: 와이퍼가 10초 연속 작동(와이퍼 단계가 정지가 아님)하면 켜고, 작동하는 동안 켜 둔다.",Required,Test,4
+L2,HeadLight,스위치 AUTO: 조도 1000 lux 미만이 1초 연속이면 켠다.,Required,Test,5
+L3,HeadLight,스위치 AUTO: 조도 1500 lux 초과가 3초 연속이면 끈다. 위 규칙 중 어느 것도 전조등을 정하지 않으면(조도 1000 이상 1500 이하이거나 시간이 아직 차지 않은 경우 등) 직전 상태를 유지한다.,Required,Test,5
+W1,Wiper,시동이 꺼져 있으면 정지한다.,Required,Test,1
+W4,Wiper,"스위치 OFF는 정지, LOW는 저속, HIGH는 고속.",Required,Test,2
+W5,Wiper,스위치 AUTO에서 강우 센서가 고장이면 간헐로 동작한다. 강우 센서 고장 표시는 시동과 와이퍼 스위치 위치에 관계없이 한다.,Required,Test,3
+W2,Wiper,"스위치 AUTO: 강우량 10% 미만 정지, 10% 이상 40% 미만 간헐, 40% 이상 70% 미만 저속, 70% 이상 고속.",Required,Test,4
+W3,Wiper,스위치 AUTO이고 유효한 속도가 0이면 W2 결과를 한 단계 낮춘다 (고속→저속→간헐→정지).,Required,Test,4
+D1,DoorLock,차량 상태 수신 중단(C4)이면 잠금 상태를 그대로 둔다.,Required,Test,1
+D2,DoorLock,그 외에 시동이 꺼져 있거나 기어가 P이면 잠금을 푼다.,Required,Test,2
+D3,DoorLock,그 외에 유효한 속도가 15 km/h 이상이면 잠근다. D1~D3에 해당하지 않으면 직전 잠금 상태를 유지한다.,Required,Test,3
+D4,Warning,"유효한 속도가 0보다 크고 문이 하나라도 열려 있으면 ""주행 중 도어 열림"" 경고.",Required,Test,
+D5,Warning,경고는 하나만 표시: 주행 중 도어 열림 > 조도 센서 고장 > 강우 센서 고장. 없으면 표시하지 않는다.,Required,Test,
