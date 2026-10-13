@@ -85,21 +85,34 @@ typedef enum {
     WARNING_RAIN_SENSOR_FAULT
 } ClusterWarning;
 
+/* ==================== 상수 ==================== */
+
+/* C1 "N초 연속" 기준 시간 (ms) */
+#define LOW_ILLUMINANCE_MS  1000    /* L2 */
+#define HIGH_ILLUMINANCE_MS 3000    /* L3 */
+#define WIPER_ACTIVE_MS     10000   /* L6 */
+
+/* 연속 시간 시작 시각: 조건이 성립하지 않아 세지 않는 상태 */
+#define TIMER_NOT_STARTED   (-1L)
+
 /* ==================== 함수 ==================== */
 
 unsigned int UpdateLowIlluminanceTime(
     int illuminance,
-    unsigned int currentTime
+    long *startTime,
+    long now
 );
 
 unsigned int UpdateHighIlluminanceTime(
     int illuminance,
-    unsigned int currentTime
+    long *startTime,
+    long now
 );
 
 unsigned int UpdateWiperActiveTime(
     WiperState wiperState,
-    unsigned int currentTime
+    long *startTime,
+    long now
 );
 
 HeadLightState ControlHeadLight(
