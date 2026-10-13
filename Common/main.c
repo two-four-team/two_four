@@ -28,9 +28,9 @@
  *   time_ms,speed,gear,engineState,illuminance,rainAmount,
  *   doorFL,doorFR,doorRL,doorRR,lightSwitch,wiperSwitch
  *   - 빈 칸은 "이번 주기에 값이 들어오지 않음"으로 처리한다 (C2, C4 시험용).
- *   - time_ms 는 증가해야 하며 100ms 간격을 전제로 한다.
- *     간격이 100ms 보다 크면 빠진 주기를 "아무 값도 들어오지 않은 주기"로 채워 처리한다
- *     (로그에 '~' 표시). 100ms 의 배수가 아닌 간격은 경고한다.
+ *   - time_ms 는 증가해야 한다. 간격은 자유이며, C1 연속 시간은 실제 time_ms 차이로 센다.
+ *     행 사이에는 100ms 마다, 그리고 0.5초 미수신·N초 연속 만료 시각마다
+ *     "아무 값도 들어오지 않은 주기"를 끼워 처리한다 (로그에 '~' 표시).
  *
  * main 의 역할 (모듈이 맡지 않는 부분):
  *   - 0.5초 미수신 판정 (C2, C4)
@@ -70,10 +70,6 @@
 #endif
 #define CSV_LINE_MAX        512
 #define FIELD_COUNT         12
-
-/* 입력 없이 이만큼 주기가 지나면 모든 주기 입력이 수신 중단(0.5초)되어 출력이 더 바뀌지 않는다.
- * 그 이후의 빈 구간은 로그에 한 줄로 요약한다 (큰 시간 점프로 로그가 수 GB 가 되는 것 방지). */
-#define MAX_FILL_CYCLES     (RX_TIMEOUT_MS / CYCLE_MS + 1)
 
 #define DEFAULT_INPUT_PATH  "input/input.csv"
 #define DEFAULT_OUTPUT_DIR  "output"
@@ -400,10 +396,10 @@ typedef struct {
     LightSwitch lightSwitch;
     WiperSwitch wiperSwitch;
 
-    /* C1 연속 시간 */
-    unsigned int lowIlluminanceTime;
-    unsigned int highIlluminanceTime;
-    unsigned int wiperActiveTime;
+    /* C1 연속 시간: 조건이 성립하기 시작한 시각 (세지 않으면 TIMER_NOT_STARTED) */
+    long lowIlluminanceStart;
+    long highIlluminanceStart;
+    long wiperActiveStart;
 
     Outputs out;
 } Simulator;
@@ -416,6 +412,9 @@ static void InitSimulator(Simulator *sim)
     sim->doors[0] = sim->doors[1] = sim->doors[2] = sim->doors[3] = DOOR_CLOSED;
     sim->lightSwitch = LIGHT_OFF;
     sim->wiperSwitch = WIPER_SWITCH_OFF;
+    sim->lowIlluminanceStart = TIMER_NOT_STARTED;
+    sim->highIlluminanceStart = TIMER_NOT_STARTED;
+    sim->wiperActiveStart = TIMER_NOT_STARTED;
 
     /* C5: 모두 꺼짐, 정지, 잠금 해제, 경고 없음 */
     sim->out.headLight = HEADLIGHT_OFF;
@@ -424,6 +423,58 @@ static void InitSimulator(Simulator *sim)
     sim->out.rainSensor = SENSOR_NORMAL;
     sim->out.doorLock = DOOR_UNLOCKED;
     sim->out.warning = WARNING_NONE;
+}
+
+/* base + delay 가 after 보다 늦고 best 보다 이르면 그 시각, 아니면 best
+ * (Windows 에서는 long 이 32비트라 time_ms 가 INT_MAX 근처일 때 넘치지 않게 비교한다) */
+static long EarlierEvent(long best, long base, long delay, long after)
+{
+    if (base > LONG_MAX - delay)
+    {
+        return best;
+    }
+
+    return (base + delay > after && base + delay < best) ? base + delay : best;
+}
+
+/* 다음 행이 오기 전에 결과가 바뀔 수 있는 시각 중 가장 이른 것 (없으면 LONG_MAX).
+ * - 0.5초 미수신 판정 시각 (C2, C4)
+ * - N초 연속이 채워지는 시각 (C1: L2, L3, L6)
+ * 이 시각에 빈 주기를 하나 끼워 넣어, 행 사이에 일어난 일을 놓치지 않는다. */
+static long NextEventTime(const Simulator *sim, long after)
+{
+    long best = LONG_MAX;
+
+    best = EarlierEvent(best, sim->speed.lastRxTime, RX_TIMEOUT_MS, after);
+    best = EarlierEvent(best, sim->gear.lastRxTime, RX_TIMEOUT_MS, after);
+    best = EarlierEvent(best, sim->engine.lastRxTime, RX_TIMEOUT_MS, after);
+    best = EarlierEvent(best, sim->illuminance.lastRxTime, RX_TIMEOUT_MS, after);
+    best = EarlierEvent(best, sim->rain.lastRxTime, RX_TIMEOUT_MS, after);
+
+    if (sim->lowIlluminanceStart != TIMER_NOT_STARTED)
+    {
+        best = EarlierEvent(best, sim->lowIlluminanceStart, LOW_ILLUMINANCE_MS, after);
+    }
+    if (sim->highIlluminanceStart != TIMER_NOT_STARTED)
+    {
+        best = EarlierEvent(best, sim->highIlluminanceStart, HIGH_ILLUMINANCE_MS, after);
+    }
+    if (sim->wiperActiveStart != TIMER_NOT_STARTED)
+    {
+        best = EarlierEvent(best, sim->wiperActiveStart, WIPER_ACTIVE_MS, after);
+    }
+
+    return best;
+}
+
+/* 모든 주기 입력이 수신 중단이면 더 기다려도 출력이 바뀌지 않는다 */
+static int AllInputsTimedOut(const Simulator *sim, long now)
+{
+    return SimRxState(&sim->speed, now) == RX_TIMEOUT &&
+           SimRxState(&sim->gear, now) == RX_TIMEOUT &&
+           SimRxState(&sim->engine, now) == RX_TIMEOUT &&
+           SimRxState(&sim->illuminance, now) == RX_TIMEOUT &&
+           SimRxState(&sim->rain, now) == RX_TIMEOUT;
 }
 
 /* 처음 행이면 시작 시점을 정한다. 시간이 증가하지 않는 행이면 0 (건너뜀) */
@@ -451,12 +502,6 @@ static int AcceptTime(Simulator *sim, const RowInput *row, int lineNo)
         return 0;
     }
 
-    if (delta % CYCLE_MS != 0)
-    {
-        fprintf(stderr, "%d행: 간격 %ldms 가 %dms 의 배수가 아닙니다 (연속 시간은 주기당 %dms 로 셈)\n",
-                lineNo, delta, CYCLE_MS, CYCLE_MS);
-    }
-
     return 1;
 }
 
@@ -467,6 +512,9 @@ static void StepSimulator(Simulator *sim, const RowInput *row)
     EngineState engineState;
     int validSpeed;
     int lightTimerEnabled;
+    unsigned int wiperActiveTime;
+    unsigned int lowIlluminanceTime;
+    unsigned int highIlluminanceTime;
     int i;
     DoorOpenWarningState doorOpenWarning;
     Outputs *out = &sim->out;
@@ -516,22 +564,30 @@ static void StepSimulator(Simulator *sim, const RowInput *row)
     /* C1: L6 시간은 시동 ON 이고 와이퍼가 작동하는 동안 센다.
      *     시동 OFF·수신 중단이면 ControlWiper 가 WIPER_STOP(W1, C4)을 내므로
      *     UpdateWiperActiveTime 만으로 0 이 된다 (별도 시동 조건 불필요). */
-    sim->wiperActiveTime = UpdateWiperActiveTime(out->wiper, sim->wiperActiveTime);
+    wiperActiveTime = UpdateWiperActiveTime(out->wiper, &sim->wiperActiveStart, now);
 
-    /* C1: L2·L3 시간 조건 */
+    /* C1: L2·L3 시간 조건. 세지 않을 때는 시작 시각도 지워 다음에 처음부터 센다 */
     lightTimerEnabled = SimLightTimerEnabled(engineState, sim->lightSwitch, out->lightSensor,
                                              sim->illuminance.everReceived);
-    sim->lowIlluminanceTime = lightTimerEnabled
-                              ? UpdateLowIlluminanceTime(sim->illuminance.value, sim->lowIlluminanceTime)
-                              : 0;
-    sim->highIlluminanceTime = lightTimerEnabled
-                               ? UpdateHighIlluminanceTime(sim->illuminance.value, sim->highIlluminanceTime)
-                               : 0;
+    if (lightTimerEnabled)
+    {
+        lowIlluminanceTime = UpdateLowIlluminanceTime(sim->illuminance.value,
+                                                      &sim->lowIlluminanceStart, now);
+        highIlluminanceTime = UpdateHighIlluminanceTime(sim->illuminance.value,
+                                                        &sim->highIlluminanceStart, now);
+    }
+    else
+    {
+        sim->lowIlluminanceStart = TIMER_NOT_STARTED;
+        sim->highIlluminanceStart = TIMER_NOT_STARTED;
+        lowIlluminanceTime = 0;
+        highIlluminanceTime = 0;
+    }
 
     /* ---------- 전조등 (L1 > L5 > L4 > L6 > L2·L3) ---------- */
     out->headLight = ControlHeadLight(vehicleRx, engineState, out->lightSensor, sim->lightSwitch,
-                                      sim->wiperActiveTime, sim->lowIlluminanceTime,
-                                      sim->highIlluminanceTime, out->headLight);
+                                      wiperActiveTime, lowIlluminanceTime,
+                                      highIlluminanceTime, out->headLight);
 
     /* ---------- 도어 잠금 (D1 > D2 > D3) ---------- */
     out->doorLock = ControlDoorLock(out->doorLock, (EngineState)sim->engine.value,
@@ -775,7 +831,6 @@ int main(int argc, char *argv[])
     while (fgets(line, sizeof(line), in) != NULL)
     {
         RowInput row;
-        int gapCycles;
         char *text = line;
 
         lineNo++;
@@ -822,29 +877,38 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        /* 빠진 주기는 아무 값도 들어오지 않은 주기로 채운다 (C2, C4 미수신 판정) */
-        gapCycles = 0;
-        while (rowCount > 0 && row.timeMs - sim.prevTime > CYCLE_MS)
+        /* 다음 행 전에 빈 주기를 끼워 넣는다 (아무 값도 들어오지 않은 주기, 로그에 '~').
+         * - 100ms 마다: 입력이 끊긴 구간을 보여 준다
+         * - 사건 시각마다: 0.5초 미수신, N초 연속 만료를 정확한 시각에 처리한다 */
+        while (rowCount > 0)
         {
             RowInput empty;
+            long fillTime = NextEventTime(&sim, sim.prevTime);
 
-            if (gapCycles == MAX_FILL_CYCLES)
+            if (sim.prevTime < fillTime - CYCLE_MS)
+            {
+                fillTime = sim.prevTime + CYCLE_MS;
+            }
+            if (fillTime >= row.timeMs)
+            {
+                break;
+            }
+
+            if (AllInputsTimedOut(&sim, sim.prevTime))
             {
                 /* 모든 입력이 수신 중단 상태라 출력이 그대로이므로 나머지는 건너뛴다 */
-                fprintf(out, "# %ld~%ld ms: 입력 없음 지속 (출력 변화 없음, 생략)\n",
-                        sim.prevTime + CYCLE_MS, row.timeMs - CYCLE_MS);
-                sim.prevTime = row.timeMs - CYCLE_MS;
+                fprintf(out, "# %ld~%ld ms 사이: 입력 없음 지속 (출력 변화 없음, 생략)\n",
+                        sim.prevTime, row.timeMs);
                 break;
             }
 
             memset(&empty, 0, sizeof(empty));
-            empty.timeMs = sim.prevTime + CYCLE_MS;
+            empty.timeMs = fillTime;
             StepSimulator(&sim, &empty);
             PrintLogRow(out, empty.timeMs, &sim.out, !SameOutputs(&sim.out, &prev), 1);
             prev = sim.out;
             sim.prevTime = empty.timeMs;
             filledRows++;
-            gapCycles++;
         }
 
         StepSimulator(&sim, &row);
